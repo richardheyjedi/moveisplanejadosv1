@@ -1,10 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
-import gsap from 'gsap'
-import { ScrollTrigger } from 'gsap/ScrollTrigger'
-import { useGSAP } from '@gsap/react'
-import Lenis from 'lenis'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 
-gsap.registerPlugin(ScrollTrigger, useGSAP)
+const Motion = lazy(() => import('./Motion'))
 
 const projects = [
   { index: '01', title: 'Cozinha', type: 'Projeto sob medida', image: '/images/hero.webp', position: 'center 45%' },
@@ -42,10 +38,24 @@ const differentials = [
 ]
 
 const testimonials = [
-  { quote: 'A Neare entendeu como a nossa família vive. O resultado é bonito, mas, principalmente, funciona de verdade todos os dias.', name: 'Marina & Eduardo', project: 'Cozinha e living — Residência Vila Nova' },
+  { quote: 'A Corá entendeu como a nossa família vive. O resultado é bonito, mas, principalmente, funciona de verdade todos os dias.', name: 'Marina & Eduardo', project: 'Cozinha e living — Residência Vila Nova' },
   { quote: 'Do primeiro desenho à instalação, percebemos cuidado em decisões que nem sabíamos que fariam tanta diferença.', name: 'Lívia S.', project: 'Suíte e closet — Apartamento Jardins' },
   { quote: 'A marcenaria organizou o espaço e trouxe unidade para toda a casa. Ficou leve, silenciosa e absolutamente nossa.', name: 'Renato A.', project: 'Projeto completo — Residência Alto da Serra' },
 ]
+
+function InteriorImage({ src, alt = '', loading, fetchPriority, style, sizes = '100vw' }) {
+  const base = src.replace(/\.webp$/, '')
+  const fullWidth = src.includes('hero') ? 1672 : 1536
+  const height = src.includes('hero') ? 941 : 1024
+
+  return (
+    <picture>
+      <source type="image/avif" srcSet={`${base}-960.avif 960w, ${base}.avif ${fullWidth}w`} sizes={sizes} />
+      <source type="image/webp" srcSet={`${base}-960.webp 960w, ${src} ${fullWidth}w`} sizes={sizes} />
+      <img src={src} alt={alt} loading={loading} decoding={loading === 'lazy' ? 'async' : 'auto'} fetchPriority={fetchPriority} width={fullWidth} height={height} style={style} />
+    </picture>
+  )
+}
 
 function Arrow({ diagonal = false }) {
   return (
@@ -69,7 +79,7 @@ function Header({ onOpen }) {
   const close = () => setMenuOpen(false)
   return (
     <header className={`site-header ${menuOpen ? 'menu-active' : ''}`} data-header>
-      <a className="brand" href="#inicio" aria-label="NEARE — início" onClick={close}>NEARE</a>
+      <a className="brand" href="#inicio" aria-label="CORÁ AMBIENTES — início" onClick={close}><span>CORÁ</span><small>AMBIENTES</small></a>
       <button className="menu-toggle" aria-expanded={menuOpen} aria-controls="main-menu" onClick={() => setMenuOpen((value) => !value)}>
         <span>{menuOpen ? 'Fechar' : 'Menu'}</span>
         <i /><i />
@@ -107,7 +117,7 @@ function QuoteModal({ open, onClose }) {
   const submit = (event) => {
     event.preventDefault()
     const data = new FormData(event.currentTarget)
-    const message = `Olá, NEARE! Meu nome é ${data.get('name')}. Gostaria de conversar sobre um projeto de ${data.get('environment')} em ${data.get('city')}.`
+    const message = `Olá, CORÁ AMBIENTES! Meu nome é ${data.get('name')}. Gostaria de conversar sobre um projeto de ${data.get('environment')} em ${data.get('city')}.`
     window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer')
     onClose()
   }
@@ -137,141 +147,6 @@ function App() {
   const root = useRef(null)
   const [modalOpen, setModalOpen] = useState(false)
 
-  useGSAP(() => {
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    const lenis = new Lenis({ duration: reduceMotion ? 0 : 1.15, smoothWheel: !reduceMotion, wheelMultiplier: 0.9 })
-    lenis.on('scroll', ScrollTrigger.update)
-    const lenisTick = (time) => lenis.raf(time * 1000)
-    gsap.ticker.add(lenisTick)
-    gsap.ticker.lagSmoothing(0)
-
-    document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
-      const onClick = (event) => {
-        const target = document.querySelector(anchor.getAttribute('href'))
-        if (target) {
-          event.preventDefault()
-          lenis.scrollTo(target, { offset: -24 })
-        }
-      }
-      anchor.addEventListener('click', onClick)
-      anchor._lenisClick = onClick
-    })
-
-    const mm = gsap.matchMedia()
-    mm.add({ desktop: '(min-width: 821px)', mobile: '(max-width: 820px)', reduce: '(prefers-reduced-motion: reduce)' }, (context) => {
-      const { desktop, reduce } = context.conditions
-      if (reduce) {
-        gsap.set('.reveal, .concept-line-inner, .project-frame, .process-step', { clearProps: 'all' })
-        return
-      }
-
-      gsap.timeline({ defaults: { ease: 'power3.out' } })
-        .from('.site-header', { autoAlpha: 0, duration: 0.8 })
-        .from('.hero-kicker', { y: 18, autoAlpha: 0, duration: 0.7 }, 0.15)
-        .from('.hero-title .line-inner', { yPercent: 110, duration: 1.05, stagger: 0.09 }, 0.12)
-        .from('.hero-bottom > *', { y: 24, autoAlpha: 0, duration: 0.8, stagger: 0.1 }, 0.45)
-        .from('.hero-scroll', { autoAlpha: 0, duration: 0.6 }, 0.8)
-
-      gsap.timeline({
-        scrollTrigger: { trigger: '.hero', start: 'top top', end: desktop ? '+=110%' : 'bottom top', scrub: 1, pin: desktop },
-      })
-        .to('.hero-media', { clipPath: desktop ? 'inset(7% 8% 7% 8%)' : 'inset(3% 4% 3% 4%)', ease: 'none' }, 0)
-        .to('.hero-media img', { scale: 1, ease: 'none' }, 0)
-        .to('.hero-copy', { yPercent: desktop ? -18 : -8, autoAlpha: 0.2, ease: 'none' }, 0)
-        .to('.hero-scroll', { y: 24, autoAlpha: 0, ease: 'none' }, 0)
-
-      ScrollTrigger.create({
-        trigger: '#sobre', start: 'top 12%', end: 'max',
-        toggleClass: { targets: '[data-header]', className: 'header-light' },
-      })
-
-      gsap.from('.concept-line-inner', {
-        yPercent: 110,
-        stagger: 0.13,
-        ease: 'power3.out',
-        scrollTrigger: { trigger: '.concept-title', start: 'top 78%', end: 'bottom 48%', scrub: 0.7 },
-      })
-
-      gsap.utils.toArray('.project-panel').forEach((panel) => {
-        const frame = panel.querySelector('.project-frame')
-        const image = panel.querySelector('img')
-        const meta = panel.querySelector('.project-meta')
-        gsap.fromTo(frame, { clipPath: 'inset(12% 5% 12% 5%)' }, {
-          clipPath: 'inset(0% 0% 0% 0%)', ease: 'none',
-          scrollTrigger: { trigger: panel, start: 'top 86%', end: 'top 24%', scrub: 0.7 },
-        })
-        gsap.fromTo(image, { scale: 1.08 }, {
-          scale: 1, ease: 'none',
-          scrollTrigger: { trigger: panel, start: 'top bottom', end: 'bottom top', scrub: 1 },
-        })
-        gsap.from(meta, { y: 30, autoAlpha: 0, duration: 0.85, ease: 'power3.out', scrollTrigger: { trigger: panel, start: 'top 58%', once: true } })
-      })
-
-      if (desktop) {
-        const track = document.querySelector('.details-track')
-        const horizontal = gsap.to(track, {
-          x: () => -(track.scrollWidth - window.innerWidth),
-          ease: 'none',
-          scrollTrigger: {
-            trigger: '.details-section', start: 'top top', end: () => `+=${track.scrollWidth - window.innerWidth}`,
-            scrub: 0.8, pin: true, invalidateOnRefresh: true,
-          },
-        })
-        gsap.utils.toArray('.detail-card').forEach((card) => {
-          gsap.from(card.querySelector('.detail-content'), {
-            y: 36, autoAlpha: 0, duration: 0.8, ease: 'power2.out',
-            scrollTrigger: { trigger: card, containerAnimation: horizontal, start: 'left 82%', toggleActions: 'play none none reverse' },
-          })
-        })
-      }
-
-      gsap.fromTo('.process-line-fill', { scaleY: 0 }, {
-        scaleY: 1, ease: 'none', transformOrigin: 'top',
-        scrollTrigger: { trigger: '.process-list', start: 'top 70%', end: 'bottom 65%', scrub: 0.6 },
-      })
-      gsap.utils.toArray('.process-step').forEach((step) => {
-        gsap.from(step, { y: 38, autoAlpha: 0, duration: 0.9, ease: 'power3.out', scrollTrigger: { trigger: step, start: 'top 78%', once: true } })
-      })
-
-      gsap.utils.toArray('.reveal').forEach((item) => {
-        gsap.from(item, { y: 38, autoAlpha: 0, duration: 1, ease: 'power3.out', scrollTrigger: { trigger: item, start: 'top 84%', once: true } })
-      })
-
-      gsap.fromTo('.experience-media img', { scale: 1.1 }, {
-        scale: 1, ease: 'none', scrollTrigger: { trigger: '.experience', start: 'top bottom', end: 'bottom top', scrub: 1 },
-      })
-    })
-
-    const cursor = document.querySelector('.custom-cursor')
-    const cursorText = cursor.querySelector('span')
-    const xTo = gsap.quickTo(cursor, 'x', { duration: 0.35, ease: 'power3.out' })
-    const yTo = gsap.quickTo(cursor, 'y', { duration: 0.35, ease: 'power3.out' })
-    const moveCursor = (event) => { xTo(event.clientX); yTo(event.clientY) }
-    const enterProject = () => { cursor.classList.add('is-project'); cursorText.textContent = 'VER PROJETO' }
-    const leaveProject = () => { cursor.classList.remove('is-project'); cursorText.textContent = '' }
-    window.addEventListener('pointermove', moveCursor)
-    document.querySelectorAll('[data-cursor-project]').forEach((item) => {
-      item.addEventListener('pointerenter', enterProject)
-      item.addEventListener('pointerleave', leaveProject)
-    })
-
-    const refresh = () => ScrollTrigger.refresh()
-    document.fonts?.ready.then(refresh)
-    window.addEventListener('load', refresh, { once: true })
-
-    return () => {
-      lenis.destroy()
-      gsap.ticker.remove(lenisTick)
-      mm.revert()
-      window.removeEventListener('pointermove', moveCursor)
-      window.removeEventListener('load', refresh)
-      document.querySelectorAll('a[href^="#"]').forEach((anchor) => anchor.removeEventListener('click', anchor._lenisClick))
-      document.querySelectorAll('[data-cursor-project]').forEach((item) => {
-        item.removeEventListener('pointerenter', enterProject)
-        item.removeEventListener('pointerleave', leaveProject)
-      })
-    }
-  }, { scope: root })
 
   return (
     <div ref={root}>
@@ -279,7 +154,7 @@ function App() {
       <Header onOpen={() => setModalOpen(true)} />
       <main id="conteudo">
         <section className="hero" id="inicio" aria-labelledby="hero-title">
-          <div className="hero-media"><img src="/images/hero.webp" alt="Cozinha e living planejados com madeira natural e pedra escura" fetchPriority="high" /></div>
+          <div className="hero-media"><InteriorImage src="/images/hero.webp" alt="Cozinha e living planejados com madeira natural e pedra escura" fetchPriority="high" /></div>
           <div className="hero-shade" />
           <div className="hero-copy">
             <p className="hero-kicker">Móveis planejados · Interiores</p>
@@ -307,7 +182,7 @@ function App() {
               <span className="concept-line"><span className="concept-line-inner">sentido para você.</span></span>
             </h2>
             <div className="concept-copy reveal">
-              <p className="lead">Cada projeto Neare nasce do equilíbrio entre estética, funcionalidade e personalidade.</p>
+              <p className="lead">Cada projeto Corá nasce do equilíbrio entre estética, funcionalidade e personalidade.</p>
               <p>Criamos ambientes planejados para aproveitar cada centímetro, respeitando sua rotina, arquitetura e estilo.</p>
             </div>
           </div>
@@ -322,7 +197,7 @@ function App() {
             {projects.map((project) => (
               <article className="project-panel" key={project.index} data-cursor-project>
                 <div className="project-frame">
-                  <img src={project.image} alt={`Projeto Neare — ${project.title}`} loading="lazy" style={{ objectPosition: project.position }} />
+                  <InteriorImage src={project.image} alt={`Projeto Corá — ${project.title}`} loading="lazy" style={{ objectPosition: project.position }} />
                   <div className="project-overlay" />
                   <div className="project-meta">
                     <span className="project-number">{project.index}</span>
@@ -345,7 +220,7 @@ function App() {
             <div className="details-spacer" aria-hidden="true" />
             {details.map((detail) => (
               <article className="detail-card" key={detail.number}>
-                <div className="detail-image"><img src={detail.image} alt="" loading="lazy" style={{ objectPosition: detail.position }} /></div>
+                <div className="detail-image"><InteriorImage src={detail.image} alt="" loading="lazy" sizes="(min-width: 821px) 40vw, 100vw" style={{ objectPosition: detail.position }} /></div>
                 <div className="detail-content"><span>{detail.number}</span><h3>{detail.title}</h3><p>{detail.text}</p></div>
               </article>
             ))}
@@ -375,7 +250,7 @@ function App() {
         <section className="differentials section-shell" aria-labelledby="differentials-title">
           <div className="differentials-grid">
             <div className="differentials-heading reveal">
-              <p className="eyebrow">Essência Neare</p>
+              <p className="eyebrow">Essência Corá</p>
               <h2 className="display-title" id="differentials-title">Planejado para durar.<br /><em>Criado para você.</em></h2>
             </div>
             <ol className="differentials-list">
@@ -385,7 +260,7 @@ function App() {
         </section>
 
         <section className="experience" aria-labelledby="experience-title">
-          <div className="experience-media"><img src="/images/experience.webp" alt="Cozinha Neare em madeira escura com iluminação acolhedora ao entardecer" loading="lazy" /></div>
+          <div className="experience-media"><InteriorImage src="/images/experience.webp" alt="Cozinha Corá em madeira escura com iluminação acolhedora ao entardecer" loading="lazy" /></div>
           <div className="experience-overlay" />
           <div className="experience-copy reveal">
             <p className="eyebrow">Uma casa que reflete você</p>
@@ -415,21 +290,22 @@ function App() {
           <p className="cta-text reveal">Conte para nós como você imagina seu espaço.</p>
           <div className="cta-actions reveal">
             <button className="button button-light button-large" onClick={() => setModalOpen(true)}><span>Solicitar orçamento</span><Arrow diagonal /></button>
-            <a className="whatsapp-link" href="https://wa.me/?text=Ol%C3%A1%2C%20NEARE!%20Gostaria%20de%20conversar%20sobre%20um%20projeto." target="_blank" rel="noreferrer"><WhatsAppIcon /> Conversar no WhatsApp</a>
+            <a className="whatsapp-link" href="https://wa.me/?text=Ol%C3%A1%2C%20COR%C3%81%20AMBIENTES!%20Gostaria%20de%20conversar%20sobre%20um%20projeto." target="_blank" rel="noreferrer"><WhatsAppIcon /> Conversar no WhatsApp</a>
           </div>
         </section>
       </main>
 
       <footer className="footer section-shell">
-        <div className="footer-top"><div><a className="footer-brand" href="#inicio">NEARE</a><p>Móveis Planejados</p></div><p className="footer-statement">Móveis sob medida.<br />Espaços com significado.</p></div>
+        <div className="footer-top"><div><a className="footer-brand" href="#inicio"><span>CORÁ</span><small>AMBIENTES</small></a><p>Móveis Planejados</p></div><p className="footer-statement">Móveis sob medida.<br />Espaços com significado.</p></div>
         <div className="footer-bottom">
           <nav aria-label="Navegação do rodapé"><a href="#projetos">Projetos</a><a href="#ambientes">Ambientes</a><a href="#sobre">Sobre</a><button onClick={() => setModalOpen(true)}>Contato</button><a href="https://instagram.com" target="_blank" rel="noreferrer">Instagram <Arrow diagonal /></a></nav>
-          <div><span>© {new Date().getFullYear()} NEARE</span><span>Móveis planejados sob medida.</span></div>
+          <div><span>© {new Date().getFullYear()} CORÁ AMBIENTES</span><span>Móveis planejados sob medida.</span></div>
         </div>
       </footer>
 
       <div className="custom-cursor" aria-hidden="true"><span /></div>
       <QuoteModal open={modalOpen} onClose={() => setModalOpen(false)} />
+      <Suspense fallback={null}><Motion root={root} /></Suspense>
     </div>
   )
 }
